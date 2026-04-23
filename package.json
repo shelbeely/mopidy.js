@@ -31,7 +31,11 @@
     "dist/**/*"
   ],
   "scripts": {
-    "build": "bun build src/index.ts --outfile dist/index.js --target browser --format esm && bun build src/index.ts --outfile dist/index.cjs --target node --format cjs && bun build src/index.ts --outfile dist/index.iife.min.js --target browser --format iife --minify && tsc --emitDeclarationOnly --project tsconfig.json",
+    "build:esm": "bun build src/index.ts --outfile dist/index.js --target browser --format esm",
+    "build:cjs": "bun build src/index.ts --outfile dist/index.cjs --target node --format cjs",
+    "build:iife": "bun build src/index.ts --outfile dist/index.iife.min.js --target browser --format iife --minify",
+    "build:types": "tsc --emitDeclarationOnly --project tsconfig.json",
+    "build": "bun run build:esm && bun run build:cjs && bun run build:iife && bun run build:types",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
