@@ -1,14 +1,59 @@
-const EventEmitter = require("events");
-const WebSocket = require("isomorphic-ws");
+import { EventEmitter } from "events";
 
-function snakeToCamel(name) {
+function snakeToCamel(name: string): string {
   return name.replace(/(_[a-z])/g, (match) =>
     match.toUpperCase().replace("_", "")
   );
 }
 
+export interface Options {
+  webSocketUrl?: string;
+  autoConnect?: boolean;
+  backoffDelayMin?: number;
+  backoffDelayMax?: number;
+  console?: Console;
+  webSocket?: WebSocket;
+}
+
+interface Settings {
+  webSocketUrl: string;
+  autoConnect: boolean;
+  backoffDelayMin: number;
+  backoffDelayMax: number;
+  console?: Console;
+  webSocket?: WebSocket;
+}
+
+interface PendingRequest {
+  resolve: (value: unknown) => void;
+  reject: (reason: unknown) => void;
+}
+
+interface JsonRpcMessage {
+  method: string;
+  params?: unknown[] | Record<string, unknown>;
+  jsonrpc?: string;
+  id?: number;
+}
+
+type MopidyConsole = {
+  log: (...args: unknown[]) => void;
+  warn: (...args: unknown[]) => void;
+  error: (...args: unknown[]) => void;
+};
+
 class Mopidy extends EventEmitter {
-  constructor(settings) {
+  static WebSocket: typeof globalThis.WebSocket;
+  static ConnectionError: typeof ConnectionError;
+  static ServerError: typeof ServerError;
+
+  _console: MopidyConsole;
+  _settings: Settings;
+  _backoffDelay: number;
+  _pendingRequests: Record<number, PendingRequest>;
+  _webSocket: WebSocket | null;
+
+  constructor(settings?: Options) {
     super();
     this._console = this._getConsole(settings || {});
     this._settings = this._configure(settings || {});
@@ -21,21 +66,25 @@ class Mopidy extends EventEmitter {
     }
   }
 
-  _getConsole(settings) {
+  _getConsole(settings: Options): MopidyConsole {
     if (typeof settings.console !== "undefined") {
-      return settings.console;
+      return settings.console as unknown as MopidyConsole;
     }
-    const con = (typeof console !== "undefined" && console) || {};
+    const con =
+      (typeof console !== "undefined" &&
+        (console as unknown as Partial<MopidyConsole>)) ||
+      ({} as Partial<MopidyConsole>);
     con.log = con.log || (() => {});
     con.warn = con.warn || (() => {});
     con.error = con.error || (() => {});
-    return con;
+    return con as MopidyConsole;
   }
 
-  _configure(settings) {
-    const newSettings = { ...settings };
+  _configure(settings: Options): Settings {
+    const newSettings = { ...settings } as Settings;
     const protocol =
-      typeof document !== "undefined" && document.location.protocol === "https:"
+      typeof document !== "undefined" &&
+      document.location.protocol === "https:"
         ? "wss://"
         : "ws://";
     const currentHost =
@@ -51,7 +100,7 @@ class Mopidy extends EventEmitter {
     return newSettings;
   }
 
-  _delegateEvents() {
+  _delegateEvents(): void {
     // Remove existing event handlers
     this.removeAllListeners("websocket:close");
     this.removeAllListeners("websocket:error");
@@ -67,7 +116,7 @@ class Mopidy extends EventEmitter {
     this.on("state:offline", this._reconnect);
   }
 
-  off(...args) {
+  off(...args: unknown[]): this {
     if (args.length === 0) {
       this.removeAllListeners();
     } else if (args.length === 1) {
@@ -80,11 +129,15 @@ class Mopidy extends EventEmitter {
         );
       }
     } else {
-      this.removeListener(...args);
+      this.removeListener(
+        args[0] as string,
+        args[1] as (...a: unknown[]) => void
+      );
     }
+    return this;
   }
 
-  connect() {
+  connect(): void {
     if (this._webSocket) {
       if (this._webSocket.readyState === Mopidy.WebSocket.OPEN) {
         return;
@@ -93,27 +146,28 @@ class Mopidy extends EventEmitter {
     }
 
     this._webSocket =
-      this._settings.webSocket ||
+      (this._settings.webSocket as WebSocket | undefined) ||
       new Mopidy.WebSocket(this._settings.webSocketUrl);
 
-    this._webSocket.onclose = (close) => {
+    this._webSocket.onclose = (close: CloseEvent) => {
       this.emit("websocket:close", close);
     };
-    this._webSocket.onerror = (error) => {
+    this._webSocket.onerror = (error: Event) => {
       this.emit("websocket:error", error);
     };
     this._webSocket.onopen = () => {
       this.emit("websocket:open");
     };
-    this._webSocket.onmessage = (message) => {
+    this._webSocket.onmessage = (message: MessageEvent) => {
       this.emit("websocket:incomingMessage", message);
     };
   }
 
-  _cleanup(closeEvent) {
+  _cleanup(closeEvent: CloseEvent): void {
     Object.keys(this._pendingRequests).forEach((requestId) => {
-      const { reject } = this._pendingRequests[requestId];
-      delete this._pendingRequests[requestId];
+      const id = Number(requestId);
+      const { reject } = this._pendingRequests[id];
+      delete this._pendingRequests[id];
       const error = new Mopidy.ConnectionError("WebSocket closed");
       error.closeEvent = closeEvent;
       reject(error);
@@ -122,7 +176,7 @@ class Mopidy extends EventEmitter {
     this.emit("state:offline");
   }
 
-  _reconnect() {
+  _reconnect(): void {
     // We asynchronously process the reconnect because we don't want to start
     // emitting "reconnectionPending" events before we've finished handling the
     // "state:offline" event, which would lead to emitting the events to
@@ -146,22 +200,25 @@ class Mopidy extends EventEmitter {
     }, 1);
   }
 
-  _resetBackoffDelay() {
+  _resetBackoffDelay(): void {
     this._backoffDelay = this._settings.backoffDelayMin;
   }
 
-  close() {
+  close(): void {
     this.off("state:offline", this._reconnect);
     if (this._webSocket) {
       this._webSocket.close();
     }
   }
 
-  _handleWebSocketError(error) {
+  _handleWebSocketError(error: Event & { stack?: string }): void {
     this._console.warn("WebSocket error:", error.stack || error);
   }
 
-  _send(message) {
+  _send(message: JsonRpcMessage): Promise<unknown> {
+    if (!this._webSocket) {
+      return Promise.reject(new Mopidy.ConnectionError("WebSocket is closed"));
+    }
     switch (this._webSocket.readyState) {
       case Mopidy.WebSocket.CONNECTING:
         return Promise.reject(
@@ -183,18 +240,21 @@ class Mopidy extends EventEmitter {
             id: this._nextRequestId(),
           };
           this._pendingRequests[jsonRpcMessage.id] = { resolve, reject };
-          this._webSocket.send(JSON.stringify(jsonRpcMessage));
+          this._webSocket!.send(JSON.stringify(jsonRpcMessage));
           this.emit("websocket:outgoingMessage", jsonRpcMessage);
         });
     }
   }
 
-  _handleMessage(message) {
+  _handleMessage(message: MessageEvent): void {
     try {
-      const data = JSON.parse(message.data);
-      if (Object.hasOwnProperty.call(data, "id")) {
+      const data = JSON.parse(message.data as string) as Record<
+        string,
+        unknown
+      >;
+      if (Object.hasOwn(data, "id")) {
         this._handleResponse(data);
-      } else if (Object.hasOwnProperty.call(data, "event")) {
+      } else if (Object.hasOwn(data, "event")) {
         this._handleEvent(data);
       } else {
         this._console.warn(
@@ -212,28 +272,34 @@ class Mopidy extends EventEmitter {
     }
   }
 
-  _handleResponse(responseMessage) {
-    if (
-      !Object.hasOwnProperty.call(this._pendingRequests, responseMessage.id)
-    ) {
+  _handleResponse(responseMessage: Record<string, unknown>): void {
+    const id = responseMessage.id as number;
+    if (!Object.hasOwn(this._pendingRequests, id)) {
       this._console.warn(
         "Unexpected response received. Message was:",
         responseMessage
       );
       return;
     }
-    const { resolve, reject } = this._pendingRequests[responseMessage.id];
-    delete this._pendingRequests[responseMessage.id];
-    if (Object.hasOwnProperty.call(responseMessage, "result")) {
+    const { resolve, reject } = this._pendingRequests[id];
+    delete this._pendingRequests[id];
+    if (Object.hasOwn(responseMessage, "result")) {
       resolve(responseMessage.result);
-    } else if (Object.hasOwnProperty.call(responseMessage, "error")) {
-      const error = new Mopidy.ServerError(responseMessage.error.message);
-      error.code = responseMessage.error.code;
-      error.data = responseMessage.error.data;
+    } else if (Object.hasOwn(responseMessage, "error")) {
+      const errData = responseMessage.error as {
+        message: string;
+        code: number;
+        data?: unknown;
+      };
+      const error = new Mopidy.ServerError(errData.message);
+      error.code = errData.code;
+      error.data = errData.data;
       reject(error);
       this._console.warn("Server returned error:", responseMessage.error);
     } else {
-      const error = new Error("Response without 'result' or 'error' received");
+      const error = new Error(
+        "Response without 'result' or 'error' received"
+      ) as Error & { data?: unknown };
       error.data = { response: responseMessage };
       reject(error);
       this._console.warn(
@@ -243,25 +309,31 @@ class Mopidy extends EventEmitter {
     }
   }
 
-  _handleEvent(eventMessage) {
+  _handleEvent(eventMessage: Record<string, unknown>): void {
     const data = { ...eventMessage };
     delete data.event;
-    const eventName = `event:${snakeToCamel(eventMessage.event)}`;
+    const eventName = `event:${snakeToCamel(eventMessage.event as string)}`;
     this.emit("event", eventName, data);
     this.emit(eventName, data);
   }
 
-  _getApiSpec() {
+  _getApiSpec(): Promise<void> {
     return this._send({ method: "core.describe" })
-      .then(this._createApi.bind(this))
+      .then((methods) =>
+        this._createApi(
+          methods as Record<string, { description: string; params: unknown[] }>
+        )
+      )
       .catch(this._handleWebSocketError.bind(this));
   }
 
-  _createApi(methods) {
+  _createApi(
+    methods: Record<string, { description: string; params: unknown[] }>
+  ): void {
     const caller =
-      (method) =>
-      (...args) => {
-        const message = { method };
+      (method: string) =>
+      (...args: unknown[]): Promise<unknown> => {
+        const message: JsonRpcMessage = { method };
         if (args.length === 0) {
           return this._send(message);
         }
@@ -277,11 +349,11 @@ class Mopidy extends EventEmitter {
             new TypeError("Expected an array or an object.")
           );
         }
-        [message.params] = args;
+        message.params = args[0] as unknown[] | Record<string, unknown>;
         return this._send(message);
       };
 
-    const getPath = (fullName) => {
+    const getPath = (fullName: string): string[] => {
       let path = fullName.split(".");
       if (path.length >= 1 && path[0] === "core") {
         path = path.slice(1);
@@ -289,23 +361,29 @@ class Mopidy extends EventEmitter {
       return path;
     };
 
-    const createObjects = (objPath) => {
-      let parentObj = this;
+    const createObjects = (objPath: string[]): Record<string, unknown> => {
+      let parentObj: Record<string, unknown> =
+        this as unknown as Record<string, unknown>;
       objPath.forEach((objName) => {
         const camelObjName = snakeToCamel(objName);
-        parentObj[camelObjName] = parentObj[camelObjName] || {};
-        parentObj = parentObj[camelObjName];
+        parentObj[camelObjName] =
+          (parentObj[camelObjName] as Record<string, unknown>) || {};
+        parentObj = parentObj[camelObjName] as Record<string, unknown>;
       });
       return parentObj;
     };
 
-    const createMethod = (fullMethodName) => {
+    const createMethod = (fullMethodName: string): void => {
       const methodPath = getPath(fullMethodName);
       const methodName = snakeToCamel(methodPath.slice(-1)[0]);
       const object = createObjects(methodPath.slice(0, -1));
-      object[methodName] = caller(fullMethodName);
-      object[methodName].description = methods[fullMethodName].description;
-      object[methodName].params = methods[fullMethodName].params;
+      const fn = caller(fullMethodName) as ((...args: unknown[]) => Promise<unknown>) & {
+        description?: string;
+        params?: unknown[];
+      };
+      fn.description = methods[fullMethodName].description;
+      fn.params = methods[fullMethodName].params;
+      object[methodName] = fn;
     };
 
     Object.keys(methods).forEach(createMethod);
@@ -313,32 +391,44 @@ class Mopidy extends EventEmitter {
     this.emit("state", "state:online");
     this.emit("state:online");
   }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _nextRequestId(): number {
+    // Overridden on the prototype below as a closure
+    return 0;
+  }
 }
 
-class ConnectionError extends Error {
-  constructor(message) {
+export class ConnectionError extends Error {
+  closeEvent?: CloseEvent;
+  constructor(message: string) {
     super(message);
     this.name = "ConnectionError";
   }
 }
 Mopidy.ConnectionError = ConnectionError;
 
-class ServerError extends Error {
-  constructor(message) {
+export class ServerError extends Error {
+  code?: number;
+  data?: unknown;
+  constructor(message: string) {
     super(message);
     this.name = "ServerError";
   }
 }
 Mopidy.ServerError = ServerError;
 
-Mopidy.WebSocket = WebSocket;
+// Use the global WebSocket (available in Bun, browsers, and Node 22+)
+Mopidy.WebSocket = globalThis.WebSocket;
 
+// Keep the incrementing request ID as a prototype-level closure
+// so tests can spy on and mock _nextRequestId per-instance
 Mopidy.prototype._nextRequestId = (() => {
   let lastUsed = -1;
-  return () => {
+  return function (this: Mopidy): number {
     lastUsed += 1;
     return lastUsed;
   };
 })();
 
-module.exports = Mopidy;
+export default Mopidy;

@@ -3,7 +3,7 @@
 
 const { toHaveBeenCalledAfter } = require("jest-extended");
 
-const Mopidy = require("../src/mopidy");
+const Mopidy = require("../src/index");
 
 const warn = jest.spyOn(global.console, "warn").mockImplementation(() => {});
 
