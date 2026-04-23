@@ -7,15 +7,16 @@
   "bugs": "https://github.com/mopidy/mopidy.js/issues",
   "license": "Apache-2.0",
   "type": "module",
-  "main": "src/mopidy.ts",
-  "module": "src/mopidy.ts",
-  "types": "src/mopidy.ts",
+  "main": "dist/mopidy.cjs",
+  "module": "dist/mopidy.js",
+  "types": "dist/mopidy.d.ts",
   "exports": {
     ".": {
-      "types": "./src/mopidy.ts",
+      "types": "./dist/mopidy.d.ts",
       "bun": "./src/mopidy.ts",
-      "import": "./src/mopidy.ts",
-      "default": "./src/mopidy.ts"
+      "import": "./dist/mopidy.js",
+      "require": "./dist/mopidy.cjs",
+      "default": "./dist/mopidy.js"
     }
   },
   "repository": {
@@ -23,7 +24,8 @@
     "url": "https://github.com/mopidy/mopidy.js"
   },
   "engines": {
-    "bun": ">= 1.3.13"
+    "bun": ">= 1.3.13",
+    "node": ">= 18"
   },
   "files": ["src/**/*", "dist/**/*"],
   "scripts": {
@@ -31,7 +33,12 @@
     "format": "biome format --write .",
     "lint": "biome lint .",
     "check": "biome check .",
-    "build": "bun build src/browser.ts --outfile dist/mopidy.js --target browser --format iife",
+    "typecheck": "tsc --noEmit",
+    "build": "bun run build:esm && bun run build:cjs && bun run build:browser && bun run build:types",
+    "build:esm": "bun build src/mopidy.ts --outfile dist/mopidy.js --target node --format esm",
+    "build:cjs": "bun build src/mopidy.ts --outfile dist/mopidy.cjs --target node --format cjs",
+    "build:browser": "bun build src/browser.ts --outfile dist/mopidy.browser.js --target browser --format iife --minify",
+    "build:types": "tsc --project tsconfig.build.json",
     "start": "bun examples/web.html"
   },
   "devDependencies": {
