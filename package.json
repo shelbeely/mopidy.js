@@ -31,7 +31,7 @@
     "dist/**/*"
   ],
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target browser --format esm --sourcemap=external && bun build src/index.ts --outdir dist --target node --format cjs --sourcemap=external && bun build src/index.ts --outdir dist --target browser --format iife --global-name Mopidy --minify --sourcemap=external && tsc --emitDeclarationOnly --declaration --declarationDir dist --project tsconfig.json",
+    "build": "bun build src/index.ts --outfile dist/index.js --target browser --format esm && bun build src/index.ts --outfile dist/index.cjs --target node --format cjs && bun build src/index.ts --outfile dist/index.iife.min.js --target browser --format iife --minify && tsc --emitDeclarationOnly --project tsconfig.json",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
