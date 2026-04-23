@@ -1,36 +1,33 @@
-/* global window */
-/* eslint no-console:off, camelcase:off */
-
-import Mopidy from "../src/mopidy";
+import Mopidy from "../src/index";
 
 const mopidy = new Mopidy({
   webSocketUrl: "ws://localhost:6680/mopidy/ws",
 });
 
 // Make instance available through developer console
-window.mopidy = mopidy;
+(window as Window & { mopidy: typeof mopidy }).mopidy = mopidy;
 
 // Utilities
 
-function el(id) {
-  return document.getElementById(id);
+function el(id: string): HTMLElement {
+  return document.getElementById(id) as HTMLElement;
 }
 
-function hide(selector) {
+function hide(selector: string): void {
   document.querySelectorAll(selector).forEach((e) => {
-    e.hidden = true;
+    (e as HTMLElement).hidden = true;
   });
 }
 
-function show(selector) {
+function show(selector: string): void {
   document.querySelectorAll(selector).forEach((e) => {
-    e.hidden = false;
+    (e as HTMLElement).hidden = false;
   });
 }
 
 // Event log
 
-function appendToEventLog(type, data) {
+function appendToEventLog(type: string, data?: unknown): void {
   const log = el("event-log");
   log.insertAdjacentHTML(
     "beforeend",
@@ -44,16 +41,16 @@ function appendToEventLog(type, data) {
 }
 mopidy.on("state", appendToEventLog);
 mopidy.on("event", appendToEventLog);
-mopidy.on("websocket:incomingMessage", (msg) =>
+mopidy.on("websocket:incomingMessage", (msg: MessageEvent) =>
   appendToEventLog("websocket:incomingMessage", JSON.parse(msg.data))
 );
-mopidy.on("websocket:outgoingMessage", (data) =>
+mopidy.on("websocket:outgoingMessage", (data: unknown) =>
   appendToEventLog("websocket:outgoingMessage", data)
 );
 
 // Player
 
-function updatePlaybackState(state, timePosition) {
+function updatePlaybackState(state: string, timePosition?: number): void {
   if (timePosition) {
     el("playback-state").innerText = `${state} at ${timePosition / 1000}s`;
   } else {
@@ -74,14 +71,22 @@ function updatePlaybackState(state, timePosition) {
   }
 }
 
-function updateCover(trackUri, images) {
+function updateCover(
+  trackUri: string,
+  images: Record<string, Array<{ uri: string; height: number; width: number }>>
+): void {
   const [image] = images[trackUri];
   el("cover").setAttribute("src", image.uri);
-  el("cover").setAttribute("height", image.height);
-  el("cover").setAttribute("width", image.width);
+  el("cover").setAttribute("height", String(image.height));
+  el("cover").setAttribute("width", String(image.width));
 }
 
-function updateCurrentTrack(track) {
+function updateCurrentTrack(track: {
+  artists: Array<{ name: string }>;
+  album: { name: string; date?: string };
+  name: string;
+  uri: string;
+}): void {
   const artists = track.artists.map((a) => a.name).join(", ");
   let albumName = track.album.name;
   if (track.album.date) {
@@ -135,11 +140,11 @@ mopidy.on("state:offline", () => {
   show(".offline-only");
 });
 
-mopidy.on("event:playbackStateChanged", ({ new_state }) => {
+mopidy.on("event:playbackStateChanged", ({ new_state }: { new_state: string }) => {
   updatePlaybackState(new_state);
 });
 
-mopidy.on("event:trackPlaybackStarted", ({ tl_track }) => {
+mopidy.on("event:trackPlaybackStarted", ({ tl_track }: { tl_track: { track: Parameters<typeof updateCurrentTrack>[0] } }) => {
   updateCurrentTrack(tl_track.track);
 });
 
@@ -147,7 +152,7 @@ mopidy.on("event:trackPlaybackStopped", () => {
   updatePlaybackState("stopped");
 });
 
-mopidy.on("event:trackPlaybackPaused", ({ time_position }) => {
+mopidy.on("event:trackPlaybackPaused", ({ time_position }: { time_position: number }) => {
   updatePlaybackState("paused", time_position);
 });
 

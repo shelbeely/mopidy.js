@@ -1,7 +1,4 @@
-#!/usr/bin/env node
-
-/* eslint-env node */
-/* eslint-disable no-console */
+#!/usr/bin/env bun
 
 /*
 Output when offline:
@@ -19,18 +16,18 @@ Output when playing:
   volume:100%   repeat: off   random: on    single: off   consume: off
 */
 
-const Mopidy = require("../src/mopidy");
+import Mopidy from "../src/index";
 
 const mopidy = new Mopidy({
   autoConnect: false,
   webSocketUrl: "ws://localhost:6680/mopidy/ws",
 });
 
-function renderTrackNumber(track) {
+function renderTrackNumber(track: { track_no: number; album: { num_tracks?: number } }): string {
   return `#${track.track_no}/${track.album.num_tracks || "-"}`;
 }
 
-function renderTime(timeInSeconds) {
+function renderTime(timeInSeconds: number): string {
   const minutes = Math.floor(timeInSeconds / 1000 / 60);
   const seconds = Math.floor((timeInSeconds / 1000) % 60)
     .toString()
@@ -38,14 +35,14 @@ function renderTime(timeInSeconds) {
   return `${minutes}:${seconds}`;
 }
 
-function renderPosition(track, timePosition) {
+function renderPosition(track: { length: number }, timePosition: number): string {
   const pos = renderTime(timePosition);
   const length = renderTime(track.length);
   const percentage = Math.floor((timePosition * 100) / track.length);
   return `${pos}/${length} (${percentage}%)`;
 }
 
-async function showPlaybackInfo() {
+async function showPlaybackInfo(): Promise<void> {
   const trackPromise = mopidy.playback.getCurrentTrack();
   const statePromise = mopidy.playback.getState();
   const timePositionPromise = mopidy.playback.getTimePosition();
@@ -58,7 +55,7 @@ async function showPlaybackInfo() {
     return;
   }
 
-  const artists = track.artists.map((a) => a.name).join(", ");
+  const artists = track.artists.map((a: { name: string }) => a.name).join(", ");
   console.log(`${artists} - ${track.name}`);
   console.log(
     `[${state}] ${renderTrackNumber(track)}   ` +
@@ -66,7 +63,7 @@ async function showPlaybackInfo() {
   );
 }
 
-async function showTracklistInfo() {
+async function showTracklistInfo(): Promise<void> {
   const volumePromise = mopidy.mixer.getVolume();
   const repeatPromise = mopidy.tracklist.getRepeat();
   const randomPromise = mopidy.tracklist.getRandom();
@@ -94,7 +91,7 @@ mopidy.on("state:online", async () => {
   process.exit();
 });
 
-mopidy.on("websocket:error", (error) => {
+mopidy.on("websocket:error", (error: Error) => {
   console.log(`WebSocket error: ${error.message}`);
   process.exit(1);
 });
