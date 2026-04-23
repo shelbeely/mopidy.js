@@ -649,6 +649,16 @@ namespace Mopidy {
       }: {
         tl_track: models.TlTrack;
       }) => void;
+      /**
+       * Called whenever playback of the current track is stopped.
+       */
+      "event:trackPlaybackStopped": ({
+        tl_track,
+        time_position,
+      }: {
+        tl_track: models.TlTrack;
+        time_position: number;
+      }) => void;
       "event:tracklistChanged": () => void;
       "event:volumeChanged": ({ volume }: { volume: number }) => void;
     }

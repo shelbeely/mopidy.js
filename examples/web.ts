@@ -144,7 +144,7 @@ mopidy.on("event:trackPlaybackStarted", ({ tl_track }) => {
   updateCurrentTrack(tl_track.track);
 });
 
-mopidy.on("event:trackPlaybackStopped" as never, () => {
+mopidy.on("event:trackPlaybackStopped", () => {
   updatePlaybackState("stopped");
 });
 
