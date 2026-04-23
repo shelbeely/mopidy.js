@@ -1005,4 +1005,225 @@ describe("API method calls", () => {
       expect(error.message).toBe("Expected an array or an object.");
     });
   });
+
+  test("rejects with error if null", async () => {
+    const promise = ctx.mopidy.foo(null);
+
+    expect.hasAssertions();
+    await promise.catch((error: any) => {
+      expect(ctx.sendStub).toHaveBeenCalledTimes(0);
+      expect(error).toBeInstanceOf(TypeError);
+      expect(error.message).toBe("Expected an array or an object.");
+    });
+  });
+
+  test("rejects with error if boolean", async () => {
+    const promise = ctx.mopidy.foo(true);
+
+    expect.hasAssertions();
+    await promise.catch((error: any) => {
+      expect(ctx.sendStub).toHaveBeenCalledTimes(0);
+      expect(error).toBeInstanceOf(TypeError);
+      expect(error.message).toBe("Expected an array or an object.");
+    });
+  });
+});
+
+describe("._configure", () => {
+  test("uses a custom webSocketUrl when provided", () => {
+    const mopidy = new Mopidy({
+      autoConnect: false,
+      webSocketUrl: "ws://custom-host/custom-path",
+    });
+
+    expect(mopidy._settings.webSocketUrl).toBe("ws://custom-host/custom-path");
+  });
+
+  test("uses a custom backoffDelayMin when provided", () => {
+    const mopidy = new Mopidy({
+      autoConnect: false,
+      backoffDelayMin: 500,
+    });
+
+    expect(mopidy._settings.backoffDelayMin).toBe(500);
+  });
+
+  test("uses a custom backoffDelayMax when provided", () => {
+    const mopidy = new Mopidy({
+      autoConnect: false,
+      backoffDelayMax: 30000,
+    });
+
+    expect(mopidy._settings.backoffDelayMax).toBe(30000);
+  });
+
+  test("defaults backoffDelayMin to 1000", () => {
+    const mopidy = new Mopidy({ autoConnect: false });
+
+    expect(mopidy._settings.backoffDelayMin).toBe(1000);
+  });
+
+  test("defaults backoffDelayMax to 64000", () => {
+    const mopidy = new Mopidy({ autoConnect: false });
+
+    expect(mopidy._settings.backoffDelayMax).toBe(64000);
+  });
+
+  test("defaults autoConnect to true when not specified", () => {
+    new Mopidy({});
+
+    expect(ctx.WebSocketMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("._getConsole", () => {
+  test("uses the provided custom console", () => {
+    const customConsole = {
+      log: mock(() => {}),
+      warn: mock(() => {}),
+      error: mock(() => {}),
+    };
+    const mopidy = new Mopidy({
+      autoConnect: false,
+      console: customConsole as unknown as Console,
+    });
+
+    mopidy._handleWebSocketError({ message: "oops" } as Error);
+
+    expect(customConsole.warn).toHaveBeenCalled();
+  });
+
+  test("falls back to the global console when none is provided", () => {
+    const mopidy = new Mopidy({ autoConnect: false });
+
+    expect(mopidy._console).toBe(console);
+  });
+});
+
+describe(".connect (additional)", () => {
+  test("closes a non-OPEN WebSocket and opens a new connection", () => {
+    // Create a fresh instance that manages its own WebSocket (no pre-made socket).
+    const mopidy = new Mopidy({ autoConnect: false });
+    mopidy.connect(); // creates the first socket
+    const firstSocket = mopidy._webSocket as any;
+    // Simulate the socket moving to CONNECTING (e.g. lost and still connecting).
+    firstSocket.readyState = ctx.WebSocketMock.CONNECTING;
+    ctx.WebSocketMock.mockClear();
+
+    mopidy.connect();
+
+    expect(firstSocket.close).toHaveBeenCalled();
+    expect(ctx.WebSocketMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("._cleanup (additional)", () => {
+  test("does not throw when there are no pending requests", () => {
+    expect(Object.keys(ctx.mopidy._pendingRequests).length).toBe(0);
+
+    expect(() => ctx.mopidy._cleanup({})).not.toThrow();
+  });
+});
+
+describe("._getApiSpec (additional)", () => {
+  test("calls _handleWebSocketError when _send fails", async () => {
+    const error = new Error("Connection failed");
+    spyOn(ctx.mopidy, "_send").mockReturnValue(Promise.reject(error));
+    const handleErrorSpy = spyOn(
+      ctx.mopidy,
+      "_handleWebSocketError"
+    ).mockImplementation(() => {});
+
+    await ctx.mopidy._getApiSpec();
+
+    expect(handleErrorSpy).toHaveBeenCalledWith(error);
+  });
+});
+
+describe("._handleMessage (additional)", () => {
+  test("rethrows non-SyntaxError exceptions", () => {
+    const rangeError = new RangeError("unexpected internal error");
+    const parseSpy = spyOn(JSON, "parse").mockImplementation(() => {
+      throw rangeError;
+    });
+
+    expect(() => {
+      ctx.mopidy._handleMessage({ data: "any" });
+    }).toThrow(rangeError);
+
+    parseSpy.mockRestore();
+  });
+});
+
+describe("._handleEvent (additional)", () => {
+  test("strips the event field and passes all other data fields through", () => {
+    const spy = mock(() => {});
+    ctx.mopidy.on("event:trackPlaybackEnded", spy);
+    const tlTrack = { tlid: 42, track: {} };
+    const message = {
+      event: "track_playback_ended",
+      tl_track: tlTrack,
+      time_position: 12345,
+    };
+
+    ctx.mopidy._handleEvent(message);
+
+    expect(spy).toHaveBeenCalledWith({
+      tl_track: tlTrack,
+      time_position: 12345,
+    });
+  });
+});
+
+describe("._createApi (additional)", () => {
+  test("can create deeply nested API methods (4+ levels)", () => {
+    ctx.mopidy._createApi({
+      "core.a.b.c": {
+        description: "A deep method",
+        params: [],
+      },
+    });
+
+    expect(ctx.mopidy.a).toBeDefined();
+    expect(ctx.mopidy.a.b).toBeDefined();
+    expect(typeof ctx.mopidy.a.b.c).toBe("function");
+    expect(ctx.mopidy.a.b.c.description).toBe("A deep method");
+  });
+});
+
+describe("Mopidy.ConnectionError", () => {
+  test("is an Error subclass with the name 'ConnectionError'", () => {
+    const error = new Mopidy.ConnectionError("connection lost");
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe("ConnectionError");
+    expect(error.message).toBe("connection lost");
+  });
+
+  test("can store a closeEvent", () => {
+    const error = new Mopidy.ConnectionError("closed");
+    const closeEvent = { code: 1000 };
+    error.closeEvent = closeEvent;
+
+    expect(error.closeEvent).toBe(closeEvent);
+  });
+});
+
+describe("Mopidy.ServerError", () => {
+  test("is an Error subclass with the name 'ServerError'", () => {
+    const error = new Mopidy.ServerError("method not found");
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe("ServerError");
+    expect(error.message).toBe("method not found");
+  });
+
+  test("can store code and data", () => {
+    const error = new Mopidy.ServerError("server error");
+    error.code = -32601;
+    error.data = { detail: "not found" };
+
+    expect(error.code).toBe(-32601);
+    expect(error.data).toEqual({ detail: "not found" });
+  });
 });
