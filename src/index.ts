@@ -394,7 +394,9 @@ class Mopidy extends EventEmitter {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _nextRequestId(): number {
-    // Overridden on the prototype below as a closure
+    // This method body is never called. The real implementation is installed
+    // as a prototype-level closure after the class definition (see below),
+    // so that tests can spy on and mock it per-instance via jest.spyOn().
     return 0;
   }
 }

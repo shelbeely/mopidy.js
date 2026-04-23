@@ -1,0 +1,7 @@
+[install]
+# Reproducible installs
+frozen = false
+
+[test]
+# Test configuration (replaces jest.config.js)
+timeout = 10000
