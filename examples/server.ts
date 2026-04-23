@@ -30,4 +30,3 @@ const server = Bun.serve({
 });
 
 console.log(`Dev server running at http://localhost:${server.port}`);
-console.log("Open http://localhost:" + server.port + " in your browser");
