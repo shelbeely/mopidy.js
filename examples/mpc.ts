@@ -1,7 +1,4 @@
-#!/usr/bin/env node
-
-/* eslint-env node */
-/* eslint-disable no-console */
+#!/usr/bin/env bun
 
 /*
 Output when offline:
@@ -19,18 +16,18 @@ Output when playing:
   volume:100%   repeat: off   random: on    single: off   consume: off
 */
 
-const Mopidy = require("../src/mopidy");
+import Mopidy from "../src/mopidy";
 
 const mopidy = new Mopidy({
   autoConnect: false,
   webSocketUrl: "ws://localhost:6680/mopidy/ws",
 });
 
-function renderTrackNumber(track) {
+function renderTrackNumber(track: Mopidy.models.Track): string {
   return `#${track.track_no}/${track.album.num_tracks || "-"}`;
 }
 
-function renderTime(timeInSeconds) {
+function renderTime(timeInSeconds: number): string {
   const minutes = Math.floor(timeInSeconds / 1000 / 60);
   const seconds = Math.floor((timeInSeconds / 1000) % 60)
     .toString()
@@ -38,23 +35,26 @@ function renderTime(timeInSeconds) {
   return `${minutes}:${seconds}`;
 }
 
-function renderPosition(track, timePosition) {
+function renderPosition(
+  track: Mopidy.models.Track,
+  timePosition: number
+): string {
   const pos = renderTime(timePosition);
   const length = renderTime(track.length);
   const percentage = Math.floor((timePosition * 100) / track.length);
   return `${pos}/${length} (${percentage}%)`;
 }
 
-async function showPlaybackInfo() {
-  const trackPromise = mopidy.playback.getCurrentTrack();
-  const statePromise = mopidy.playback.getState();
-  const timePositionPromise = mopidy.playback.getTimePosition();
+async function showPlaybackInfo(): Promise<void> {
+  const trackPromise = mopidy.playback!.getCurrentTrack();
+  const statePromise = mopidy.playback!.getState();
+  const timePositionPromise = mopidy.playback!.getTimePosition();
 
   const track = await trackPromise;
   const state = await statePromise;
   const timePosition = await timePositionPromise;
 
-  if (state === "stopped") {
+  if (state === "stopped" || track === null || timePosition === null) {
     return;
   }
 
@@ -66,14 +66,14 @@ async function showPlaybackInfo() {
   );
 }
 
-async function showTracklistInfo() {
-  const volumePromise = mopidy.mixer.getVolume();
-  const repeatPromise = mopidy.tracklist.getRepeat();
-  const randomPromise = mopidy.tracklist.getRandom();
-  const singlePromise = mopidy.tracklist.getSingle();
-  const consumePromise = mopidy.tracklist.getConsume();
+async function showTracklistInfo(): Promise<void> {
+  const volumePromise = mopidy.mixer!.getVolume();
+  const repeatPromise = mopidy.tracklist!.getRepeat();
+  const randomPromise = mopidy.tracklist!.getRandom();
+  const singlePromise = mopidy.tracklist!.getSingle();
+  const consumePromise = mopidy.tracklist!.getConsume();
 
-  const volume = (await volumePromise).toString().padStart(3, " ");
+  const volume = ((await volumePromise) ?? 0).toString().padStart(3, " ");
   const repeat = ((await repeatPromise) && "on ") || "off";
   const random = ((await randomPromise) && "on ") || "off";
   const single = ((await singlePromise) && "on ") || "off";
@@ -94,8 +94,8 @@ mopidy.on("state:online", async () => {
   process.exit();
 });
 
-mopidy.on("websocket:error", (error) => {
-  console.log(`WebSocket error: ${error.message}`);
+mopidy.on("websocket:error", (error: { message?: string }) => {
+  console.log(`WebSocket error: ${error.message ?? error}`);
   process.exit(1);
 });
 

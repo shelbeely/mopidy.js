@@ -60,6 +60,8 @@ Promise APIs, weighing in at around 12 kB minified.
 You can install Mopidy.js from npm:
 
 ```
+bun add mopidy
+# or, with npm
 npm install mopidy
 ```
 
@@ -71,12 +73,12 @@ the project's
 
 ### Building from source
 
-Install [Node.js](https://nodejs.org/).
+Install [Bun](https://bun.com/) (>= 1.3.13).
 
 Enter the source directory, and install all dependencies:
 
 ```
-npm install
+bun install
 ```
 
 That's it.
@@ -84,13 +86,14 @@ That's it.
 You can now run the tests and linters:
 
 ```
-npm test
+bun test
+bun run check
 ```
 
-To build updated JavaScript files for browser use in `dist/`, run:
+To build an updated browser bundle in `dist/`, run:
 
 ```
-npm run build
+bun run build
 ```
 
 ## Usage
@@ -189,7 +192,7 @@ mopidy.on("state", console.log);
 mopidy.on("event", console.log);
 ```
 
-Mopidy.js uses [Node.js' events API](https://nodejs.org/api/events.html), so
+Mopidy.js uses Node.js' [events API](https://nodejs.org/api/events.html), so
 you should refer to its documentation to see how you can hook up your listeners
 to the different events.
 
@@ -406,19 +409,19 @@ To run the demo application yourself:
 
 3. Clone Mopidy.js from GitHub.
 
-4. Run `npm install` to install dependencies.
+4. Run `bun install` to install dependencies.
 
-5. Run `npm start` to run the demo application at http://localhost:1234/.
+5. Run `bun start` to run the demo application at http://localhost:1234/.
 
 This setup uses hot module reloading, so any changes you do to the demo
-application files, `examples/web.{html,js}`, will instantly be visible in
+application files, `examples/web.{html,ts}`, will instantly be visible in
 your browser. Thus, this can serve as a nice playing ground to get to know
 the capabilities of Mopidy and Mopidy.js.
 
 ### Console application
 
-In the `examples/` directory of the Git repo, you can find `mpc.js`, a partial
-clone of the `mpc` utility built using Mopidy.js on Node.
+In the `examples/` directory of the Git repo, you can find `mpc.ts`, a partial
+clone of the `mpc` utility built using Mopidy.js on Bun.
 
 Output from the original command:
 
@@ -429,17 +432,17 @@ Jon Hopkins - C O S M
 volume:100%   repeat: off   random: on    single: off   consume: off
 ```
 
-Output from the `mpc.js` example:
+Output from the `mpc.ts` example:
 
 ```
-$ ./examples/mpc.js
+$ bun examples/mpc.ts
 Jon Hopkins - C O S M
 [playing] #6/-   2:34/7:08 (36%)
 volume:100%   repeat: off   random: on    single: off   consume: off
 ```
 
 To run this example yourself, follow step 1-4 for the demo web application, and
-then run `./examples/mpc.js`.
+then run `bun examples/mpc.ts`.
 
 ## Changelog
 

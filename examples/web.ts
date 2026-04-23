@@ -1,6 +1,3 @@
-/* global window */
-/* eslint no-console:off, camelcase:off */
-
 import Mopidy from "../src/mopidy";
 
 const mopidy = new Mopidy({
@@ -8,33 +5,33 @@ const mopidy = new Mopidy({
 });
 
 // Make instance available through developer console
-window.mopidy = mopidy;
+(window as unknown as { mopidy: Mopidy }).mopidy = mopidy;
 
 // Utilities
 
-function el(id) {
-  return document.getElementById(id);
+function el(id: string): HTMLElement {
+  return document.getElementById(id) as HTMLElement;
 }
 
-function hide(selector) {
-  document.querySelectorAll(selector).forEach((e) => {
+function hide(selector: string): void {
+  document.querySelectorAll<HTMLElement>(selector).forEach((e) => {
     e.hidden = true;
   });
 }
 
-function show(selector) {
-  document.querySelectorAll(selector).forEach((e) => {
+function show(selector: string): void {
+  document.querySelectorAll<HTMLElement>(selector).forEach((e) => {
     e.hidden = false;
   });
 }
 
 // Event log
 
-function appendToEventLog(type, data) {
+function appendToEventLog(type: unknown, data?: unknown): void {
   const log = el("event-log");
   log.insertAdjacentHTML(
     "beforeend",
-    `<strong>${new Date().toISOString()} ${type}</strong><br>`
+    `<strong>${new Date().toISOString()} ${String(type)}</strong><br>`
   );
   if (data) {
     log.insertAdjacentHTML("beforeend", JSON.stringify(data, null, 2));
@@ -44,16 +41,16 @@ function appendToEventLog(type, data) {
 }
 mopidy.on("state", appendToEventLog);
 mopidy.on("event", appendToEventLog);
-mopidy.on("websocket:incomingMessage", (msg) =>
+mopidy.on("websocket:incomingMessage", (msg: { data: string }) =>
   appendToEventLog("websocket:incomingMessage", JSON.parse(msg.data))
 );
-mopidy.on("websocket:outgoingMessage", (data) =>
+mopidy.on("websocket:outgoingMessage", (data: unknown) =>
   appendToEventLog("websocket:outgoingMessage", data)
 );
 
 // Player
 
-function updatePlaybackState(state, timePosition) {
+function updatePlaybackState(state: string, timePosition?: number): void {
   if (timePosition) {
     el("playback-state").innerText = `${state} at ${timePosition / 1000}s`;
   } else {
@@ -74,14 +71,18 @@ function updatePlaybackState(state, timePosition) {
   }
 }
 
-function updateCover(trackUri, images) {
+function updateCover(
+  trackUri: string,
+  images: { [index: string]: Mopidy.models.Image[] }
+): void {
   const [image] = images[trackUri];
   el("cover").setAttribute("src", image.uri);
-  el("cover").setAttribute("height", image.height);
-  el("cover").setAttribute("width", image.width);
+  el("cover").setAttribute("height", String(image.height));
+  el("cover").setAttribute("width", String(image.width));
 }
 
-function updateCurrentTrack(track) {
+function updateCurrentTrack(track: Mopidy.models.Track | null): void {
+  if (!track) return;
   const artists = track.artists.map((a) => a.name).join(", ");
   let albumName = track.album.name;
   if (track.album.date) {
@@ -93,8 +94,8 @@ function updateCurrentTrack(track) {
   el("current-track").innerText = track.name;
   el("current-uri").innerText = track.uri;
 
-  mopidy.library
-    .getImages([[track.uri]])
+  mopidy
+    .library!.getImages({ uris: [track.uri] })
     .then((result) => updateCover(track.uri, result));
 }
 
@@ -104,30 +105,30 @@ mopidy.on("state:online", () => {
   hide(".offline-only");
   show(".online-only");
 
-  mopidy.playback.getState().then(updatePlaybackState);
-  mopidy.playback.getCurrentTrack().then(updateCurrentTrack);
+  mopidy.playback!.getState().then((state) => updatePlaybackState(state));
+  mopidy.playback!.getCurrentTrack().then(updateCurrentTrack);
 
-  el("play").onclick = () => mopidy.playback.play();
-  el("pause").onclick = () => mopidy.playback.pause();
-  el("previous").onclick = () => mopidy.playback.previous();
-  el("next").onclick = () => mopidy.playback.next();
+  el("play").onclick = () => mopidy.playback!.play({});
+  el("pause").onclick = () => mopidy.playback!.pause();
+  el("previous").onclick = () => mopidy.playback!.previous();
+  el("next").onclick = () => mopidy.playback!.next();
 
   el("repeat").onclick = () =>
-    mopidy.tracklist
-      .getRepeat()
-      .then((state) => mopidy.tracklist.setRepeat([!state]));
+    mopidy
+      .tracklist!.getRepeat()
+      .then((state) => mopidy.tracklist!.setRepeat({ value: !state }));
   el("random").onclick = () =>
-    mopidy.tracklist
-      .getRandom()
-      .then((state) => mopidy.tracklist.setRandom([!state]));
+    mopidy
+      .tracklist!.getRandom()
+      .then((state) => mopidy.tracklist!.setRandom({ value: !state }));
   el("single").onclick = () =>
-    mopidy.tracklist
-      .getSingle()
-      .then((state) => mopidy.tracklist.setSingle([!state]));
+    mopidy
+      .tracklist!.getSingle()
+      .then((state) => mopidy.tracklist!.setSingle({ value: !state }));
   el("consume").onclick = () =>
-    mopidy.tracklist
-      .getConsume()
-      .then((state) => mopidy.tracklist.setConsume([!state]));
+    mopidy
+      .tracklist!.getConsume()
+      .then((state) => mopidy.tracklist!.setConsume({ value: !state }));
 });
 
 mopidy.on("state:offline", () => {
@@ -154,17 +155,17 @@ mopidy.on("event:trackPlaybackPaused", ({ time_position }) => {
 mopidy.on("event:trackPlaybackResumed", () => {});
 
 mopidy.on("event:optionsChanged", () => {
-  mopidy.tracklist
-    .getRepeat()
+  mopidy
+    .tracklist!.getRepeat()
     .then((state) => el("repeat").classList.toggle("active", state));
-  mopidy.tracklist
-    .getRandom()
+  mopidy
+    .tracklist!.getRandom()
     .then((state) => el("random").classList.toggle("active", state));
-  mopidy.tracklist
-    .getSingle()
+  mopidy
+    .tracklist!.getSingle()
     .then((state) => el("single").classList.toggle("active", state));
-  mopidy.tracklist
-    .getConsume()
+  mopidy
+    .tracklist!.getConsume()
     .then((state) => el("consume").classList.toggle("active", state));
 });
 
