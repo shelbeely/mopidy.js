@@ -396,7 +396,7 @@ class Mopidy extends EventEmitter {
   _nextRequestId(): number {
     // This method body is never called. The real implementation is installed
     // as a prototype-level closure after the class definition (see below),
-    // so that tests can spy on and mock it per-instance via jest.spyOn().
+    // so that tests can spy on and mock it per-instance via spyOn().
     return 0;
   }
 }

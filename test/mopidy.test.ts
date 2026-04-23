@@ -19,7 +19,7 @@ interface MockWebSocketInstance {
   onclose?: (e: CloseEvent | Record<string, unknown>) => void;
   onerror?: (e: Event | Record<string, unknown>) => void;
   onopen?: () => void;
-  onmessage?: (e: MessageEvent | { data: string }) => void;
+  onmessage?: (e: MessageEvent) => void;
 }
 
 let mopidy: Mopidy;
