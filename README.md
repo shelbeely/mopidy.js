@@ -2,7 +2,7 @@
 
 [![Latest npm version](https://img.shields.io/npm/v/mopidy.svg)](https://www.npmjs.org/package/mopidy)
 [![Number of npm downloads](https://img.shields.io/npm/dm/mopidy.svg)](https://www.npmjs.org/package/mopidy)
-[![CI build status](https://img.shields.io/github/actions/workflow/status/mopidy/mopidy-nad/ci.yml?branch=main)](https://github.com/mopidy/homebrew-mopidy/actions)
+[![CI build status](https://img.shields.io/github/actions/workflow/status/mopidy/mopidy.js/ci.yml?branch=main)](https://github.com/mopidy/mopidy.js/actions)
 
 Mopidy.js is a JavaScript library for controlling a
 [Mopidy music server](https://www.mopidy.com/).
@@ -100,13 +100,13 @@ bun run build
 
 ### Importing
 
-After installing, you can import Mopidy.js into your code using `require()`:
+After installing, you can import Mopidy.js into your code using CommonJS `require()`:
 
 ```js
 const Mopidy = require("mopidy");
 ```
 
-Or using ES6 imports:
+Or using ES module imports:
 
 ```js
 import Mopidy from "mopidy";
@@ -402,7 +402,7 @@ Mopidy.js developers.
 To run the demo application yourself:
 
 1. Make sure the `http/allowed_origins` config value in your `mopidy.conf`
-   includes `localhost:1234`.
+   includes `localhost:6680`.
 
 2. Run Mopidy on your local machine, so that Mopidy's web interface becomes
    available at http://localhost:6680/.
@@ -411,12 +411,11 @@ To run the demo application yourself:
 
 4. Run `bun install` to install dependencies.
 
-5. Run `bun start` to run the demo application at http://localhost:1234/.
+5. Open `examples/web.html` directly in your browser, or serve it with any
+   static file server.
 
-This setup uses hot module reloading, so any changes you do to the demo
-application files, `examples/web.{html,ts}`, will instantly be visible in
-your browser. Thus, this can serve as a nice playing ground to get to know
-the capabilities of Mopidy and Mopidy.js.
+This can serve as a nice playing ground to get to know the capabilities of
+Mopidy and Mopidy.js.
 
 ### Console application
 

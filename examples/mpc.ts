@@ -94,8 +94,9 @@ mopidy.on("state:online", async () => {
   process.exit();
 });
 
-mopidy.on("websocket:error", (error: { message?: string }) => {
-  console.log(`WebSocket error: ${error.message ?? error}`);
+mopidy.on("websocket:error", (event: Event) => {
+  const err = event as Event & { message?: string };
+  console.log(`WebSocket error: ${err.message ?? err}`);
   process.exit(1);
 });
 

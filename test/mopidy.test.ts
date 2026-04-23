@@ -1088,7 +1088,7 @@ describe("._getConsole", () => {
       console: customConsole as unknown as Console,
     });
 
-    mopidy._handleWebSocketError({ message: "oops" } as Error);
+    mopidy._handleWebSocketError({ message: "oops" } as unknown as Event);
 
     expect(customConsole.warn).toHaveBeenCalled();
   });

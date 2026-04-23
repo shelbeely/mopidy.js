@@ -26,15 +26,14 @@
     "rules": {
       "recommended": true,
       "suspicious": {
-        "noExplicitAny": "off",
-        "noPrototypeBuiltins": "off",
+        "noExplicitAny": "error",
         "noAssignInExpressions": "off",
         "noUnsafeDeclarationMerging": "off"
       },
       "style": {
         "noNamespace": "off",
-        "useImportType": "off",
-        "noNonNullAssertion": "off",
+        "useImportType": "error",
+        "noNonNullAssertion": "error",
         "noParameterAssign": "off",
         "useTemplate": "off",
         "noUnusedTemplateLiteral": "off"
@@ -51,5 +50,30 @@
         "noUnusedVariables": "off"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "include": ["test/**"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    },
+    {
+      "include": ["examples/**"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "suspicious": {
+            "noExplicitAny": "off"
+          }
+        }
+      }
+    }
+  ]
 }
