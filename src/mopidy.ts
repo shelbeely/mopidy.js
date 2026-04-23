@@ -3,27 +3,27 @@
 type Listener = (...args: unknown[]) => void;
 
 class EventEmitter {
-  private _events: Map<string | symbol, Listener[]> = new Map();
+  private _listeners: Map<string | symbol, Listener[]> = new Map();
 
   on(event: string | symbol, listener: Listener): this {
-    const list = this._events.get(event);
+    const list = this._listeners.get(event);
     if (list) {
       list.push(listener);
     } else {
-      this._events.set(event, [listener]);
+      this._listeners.set(event, [listener]);
     }
     return this;
   }
 
   removeListener(event: string | symbol, listener: Listener): this {
-    const list = this._events.get(event);
+    const list = this._listeners.get(event);
     if (list) {
       const idx = list.indexOf(listener);
       if (idx !== -1) {
         list.splice(idx, 1);
       }
       if (list.length === 0) {
-        this._events.delete(event);
+        this._listeners.delete(event);
       }
     }
     return this;
@@ -31,15 +31,15 @@ class EventEmitter {
 
   removeAllListeners(event?: string | symbol): this {
     if (event !== undefined) {
-      this._events.delete(event);
+      this._listeners.delete(event);
     } else {
-      this._events.clear();
+      this._listeners.clear();
     }
     return this;
   }
 
   emit(event: string | symbol, ...args: unknown[]): boolean {
-    const list = this._events.get(event);
+    const list = this._listeners.get(event);
     if (!list || list.length === 0) return false;
     // Iterate over a copy so that listeners added/removed during emit are
     // not affected mid-loop (matches Node.js EventEmitter behaviour).

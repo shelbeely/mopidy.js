@@ -47,12 +47,14 @@ jobs:
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
+      - name: Set up Node.js (for npm publish)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
       - run: bun install --frozen-lockfile
       - run: bun run build
-      - name: Configure npm auth
-        run: |
-          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > ~/.npmrc
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       - name: Publish to npm
-        run: bun publish --access public
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
